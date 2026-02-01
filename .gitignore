@@ -186,3 +186,18 @@ knowledge-destilation-bedrock-and-cmi/model_comparison_plots.png
 knowledge-destilation-bedrock-and-cmi/model_comparison_radar_plot.png
 .gitignore
 .DS_Store
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# pyenv
+.python-version

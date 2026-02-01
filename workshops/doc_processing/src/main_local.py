@@ -69,14 +69,67 @@ def calc_total(expenses):
 
     # Check if expenses['Expenses'] is already a Python object or a JSON string
     if isinstance(expenses["Expenses"], str):
+        expenses_str = expenses["Expenses"]
         try:
-            expenses["Expenses"] = json.loads(expenses["Expenses"])
+            expenses["Expenses"] = json.loads(expenses_str)
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON: {e}")
             print(
-                f"Raw expenses data: {expenses['Expenses'][:500]}..."
-            )  # Print first 500 chars for debugging
-            raise
+                f"Error at position {e.pos}: {expenses_str[max(0, e.pos-50):e.pos+50]}"
+            )
+            print(f"Full expenses string length: {len(expenses_str)}")
+            print(f"First 1000 chars: {expenses_str[:1000]}")
+            print(f"Last 500 chars: {expenses_str[-500:]}")
+
+            # Try to extract JSON from markdown code blocks
+            json_match = re.search(
+                r"```(?:json)?\s*(\[.*?\])\s*```", expenses_str, re.DOTALL
+            )
+            if json_match:
+                try:
+                    expenses["Expenses"] = json.loads(json_match.group(1))
+                    print("Successfully extracted JSON from markdown code block")
+                except json.JSONDecodeError:
+                    pass
+
+            # Try to find JSON array pattern (only if markdown extraction didn't work)
+            if isinstance(expenses["Expenses"], str):
+                json_array_match = re.search(r"(\[.*?\])", expenses_str, re.DOTALL)
+                if json_array_match:
+                    try:
+                        expenses["Expenses"] = json.loads(json_array_match.group(1))
+                        print("Successfully extracted JSON array from string")
+                    except json.JSONDecodeError:
+                        # If still a string, try to use ast.literal_eval as last resort
+                        try:
+                            expenses["Expenses"] = ast.literal_eval(expenses_str)
+                            print("Successfully parsed using ast.literal_eval")
+                        except (ValueError, SyntaxError) as ast_error:
+                            print(f"ast.literal_eval also failed: {ast_error}")
+                            raise json.JSONDecodeError(
+                                f"Could not parse expenses JSON. Original error: {e}",
+                                expenses_str,
+                                e.pos,
+                            )
+                else:
+                    # No JSON array found, try ast.literal_eval as last resort
+                    try:
+                        expenses["Expenses"] = ast.literal_eval(expenses_str)
+                        print("Successfully parsed using ast.literal_eval")
+                    except (ValueError, SyntaxError) as ast_error:
+                        print(f"ast.literal_eval also failed: {ast_error}")
+                        raise json.JSONDecodeError(
+                            f"Could not parse expenses JSON. Original error: {e}",
+                            expenses_str,
+                            e.pos,
+                        )
+
+    # Validate that Expenses is now a list
+    if not isinstance(expenses["Expenses"], list):
+        raise TypeError(
+            f"Expenses must be a list, but got {type(expenses['Expenses'])}. "
+            f"Value: {expenses['Expenses']}"
+        )
 
     for entry in expenses["Expenses"]:
         if "STATUS" in entry:
